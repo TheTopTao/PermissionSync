@@ -12,16 +12,19 @@ namespace DBUtility
 {
     public class SettingReportAuthority
     {
-        public static string connectionString = "Data Source=ECISPOWERUATTES;Initial Catalog=Eisai_DMT;User Id=sa;Password=123456;";
+        public static string connectionString = "Data Source=ECISPOWERBI;Initial Catalog=Eisai_DMT;User Id=service;Password=fisk@EC1;";
         public static string webUser = "ROOT_EISAI\\domain users";
         //public string connectionString = "Data Source = .\\sqlserver2019; Initial Catalog = WeicaiTest; Integrated Security = SSPI";
 
-        string PBIApi = "http://10.187.55.182/reports/api/v2.0";
-        string PBIAccount = "ECISPOWERUATTES\\vfisk";
-        string PBIPassword = "fisk@EC1";
+        //string PBIApi = "http://10.187.55.182/reports/api/v2.0";
+        //string PBIAccount = "ECISPOWERUATTES\\vfisk";
+        //string PBIPassword = "fisk@EC1";
         //string PBIApi = "http://192.168.1.37/ReportS/api/v2.0";
         //string PBIAccount = "fiskdev\\Administrator";
         //string PBIPassword = "fiskpwd01!";
+        string PBIApi = "http://localhost/reports/api/v2.0";
+        string PBIAccount = "ECISPOWERBI\\powerbiservices";
+        string PBIPassword = "BIs!eisai2005";
 
         public dynamic SettingReportAuthoritys()
         {

@@ -17,15 +17,15 @@ namespace PermissionSync
             PBIPermissions();
         }
 
-        public static string connectionString = "Data Source=ECISPOWERUATTES;Initial Catalog=Eisai_DMT;User Id=sa;Password=123456;";
-        //public static string connectionString = "Data Source=ECISPOWERBI;Initial Catalog=Eisai_DMT;User Id=service;Password=fisk@EC1;";
+        //public static string connectionString = "Data Source=ECISPOWERUATTES;Initial Catalog=Eisai_DMT;User Id=sa;Password=123456;";
+        public static string connectionString = "Data Source=ECISPOWERBI;Initial Catalog=Eisai_DMT;User Id=service;Password=fisk@EC1;";
         //public static string connectionString = "Data Source = .\\sqlserver2019; Initial Catalog = WeicaiTest; Integrated Security = SSPI";
 
         public static void Permissions()
         {
             #region 数据权限操作
             string DomainAccount = "ROOT_EISAI"; //域账号
-            string Instance = "ECISPOWERUATTES"; //182：ECISPOWERUATTES， 181：ECISPOWERBIDEV
+            string Instance = "ECISPOWERBI"; //182：ECISPOWERUATTES， 181：ECISPOWERBIDEV
             string DataBases = "Eisai_BAIM";    // 182： Eisai_BAIM ， 181 ：Eisai_BAIM
             string tables = "V_Dim_Territory";
             string tablesCVH = "V_Dim_TerritoryCVH";
@@ -79,7 +79,6 @@ namespace PermissionSync
 
                 if (roleFlag == "2")
                 {
-                    continue;
 
                     bool TabHasRole = tmo.RoleIsHave(roleName);
                     if (TabHasRole)

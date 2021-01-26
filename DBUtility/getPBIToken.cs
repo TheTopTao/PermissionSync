@@ -19,14 +19,19 @@ namespace DBUtility
         //string PBIAccountConfig = "fiskdev\\Administrator";
         //string PBIPasswordConfig = "fiskpwd01!";
 
-        public string PBIApiConfig = "http://10.187.55.182/reports/api/v2.0";
-        public string PBIAccountConfig = "ECISPOWERUATTES\\vfisk";
-        public string PBIPasswordConfig = "fisk@EC1";
+        //public string PBIApiConfig = "http://10.187.55.182/reports/api/v2.0";
+        //public string PBIAccountConfig = "ECISPOWERUATTES\\vfisk";
+        //public string PBIPasswordConfig = "fisk@EC1";
 
 
-        public static string connectionString = "Data Source=ECISPOWERUATTES;Initial Catalog=Eisai_DMT;User Id=sa;Password=123456;";
+        string PBIApiConfig = "http://localhost/reports/api/v2.0";
+        string PBIAccountConfig = "ECISPOWERBI\\powerbiservices";
+        string PBIPasswordConfig = "BIs!eisai2005";
+
+
+        public static string connectionString = "Data Source=ECISPOWERBI;Initial Catalog=Eisai_DMT;User Id=service;Password=fisk@EC1;";
         //public static string connectionString = "Data Source = .\\sqlserver2019; Initial Catalog = WeicaiTest; Integrated Security = SSPI";
-        //string PBIApiConfig = "http://192.168.1.37/ReportS/api/v2.0";
+        //string PBIApiConfig = "http://192.168.1.37/ReportS/api/v2.0"; 
         //string PBIAccountConfig = "fiskdev\\Administrator";
         //string PBIPasswordConfig = "fiskpwd01!";
 
