@@ -18,11 +18,13 @@
 //using Fisk.Eisai.ViewModel.UserInfo;
 using Microsoft.AnalysisServices.AdomdClient;
 using Microsoft.AnalysisServices.Tabular;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -30,6 +32,8 @@ namespace DBUtility
 {
     public class TOMHelper
     {
+        public static log4net.ILog logInfo = log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType.Name);
+
         //private static string ConnectionString = "DataSource=localhost\\tabular";
         /// <summary>
         /// 连接字符串
@@ -236,63 +240,74 @@ namespace DBUtility
         /// </summary>
         public void TabularSetRolePermissionRoleDoesNotExist(List<string> Data, string RoleName, List<string> Userlist, string DomainAccount, string Field)
         {
-            using (Server server = new Server())
+            try
             {
-                server.Connect(ConnectionString);
-                Database asDatabase;
-                if (server.Databases.FindByName(DataBases) != null)
+                using (Server server = new Server())
                 {
-                    asDatabase = server.Databases.FindByName(DataBases);
-                    //var db = server.Databases.GetByName(DataBases);
-                    var Roles = asDatabase.Model.Roles;
-                    //添加数据权限dddd
-
-                    TablePermission tpm = new TablePermission();
-                    tpm.Table = asDatabase.Model.Tables.Find(Table);
-                    //tpm.MetadataPermission = MetadataPermission.None; //表权限
-
-
-                    //ColumnPermission cpm = new ColumnPermission();
-                    //cpm.Column = tpm.Table.Columns.Find("ID_Date");
-                    //cpm.MetadataPermission = MetadataPermission.None;
-                    //tpm.ColumnPermissions.Add(cpm);
-
-                    StringBuilder filterStr = new StringBuilder();
-                    for (int i = 0, ListCount = Data.Count; i < ListCount; i++)
+                    server.Connect(ConnectionString);
+                    Database asDatabase;
+                    if (server.Databases.FindByName(DataBases) != null)
                     {
-                        string str = IsNumeric(Data[i]);
-                        string stastr = str == "" ? "VALUE(" : "";
-                        string Endstr = str == "" ? ")" : "";
-                        if (i == ListCount - 1)
-                        {
-                            filterStr.Append("" + stastr + " " + Table + "[" + Field + "] " + Endstr + "= " + str + "" + Data[i] + "" + str + "  ");
-                        }
-                        else
-                        {
-                            filterStr.Append("" + stastr + " " + Table + "[" + Field + "] " + Endstr + " = " + str + "" + Data[i] + "" + str + " || ");
-                        }
-                    }
+                        asDatabase = server.Databases.FindByName(DataBases);
+                        //var db = server.Databases.GetByName(DataBases);
+                        var Roles = asDatabase.Model.Roles;
+                        //添加数据权限dddd
 
-                    tpm.FilterExpression = filterStr.ToString();
-                    ModelRole mr = new ModelRole();
-                    mr.Name = RoleName;
-                    mr.ModelPermission = ModelPermission.Read;
-                    mr.TablePermissions.Add(tpm);
-                    //添加用户
-                    if (Userlist.Count > 0)
-                    {
-                        foreach (string user in Userlist)
-                        {
-                            ModelRoleMember emrm = new WindowsModelRoleMember();
-                            emrm.MemberName = "" + DomainAccount + "\\" + user + "";
-                            mr.Members.Add(emrm);
-                        }
-                    }
+                        TablePermission tpm = new TablePermission();
+                        tpm.Table = asDatabase.Model.Tables.Find(Table);
+                        //tpm.MetadataPermission = MetadataPermission.None; //表权限
 
-                    asDatabase.Model.Roles.Add(mr);
-                    asDatabase.Update(Microsoft.AnalysisServices.UpdateOptions.ExpandFull);
-                    Console.WriteLine(RoleName + "---添加角色成功，");
+
+                        //ColumnPermission cpm = new ColumnPermission();
+                        //cpm.Column = tpm.Table.Columns.Find("ID_Date");
+                        //cpm.MetadataPermission = MetadataPermission.None;
+                        //tpm.ColumnPermissions.Add(cpm);
+
+                        StringBuilder filterStr = new StringBuilder();
+                        for (int i = 0, ListCount = Data.Count; i < ListCount; i++)
+                        {
+                            string str = IsNumeric(Data[i]);
+                            string stastr = str == "" ? "VALUE(" : "";
+                            string Endstr = str == "" ? ")" : "";
+                            if (i == ListCount - 1)
+                            {
+                                filterStr.Append("" + stastr + " " + Table + "[" + Field + "] " + Endstr + "= " + str + "" + Data[i] + "" + str + "  ");
+                            }
+                            else
+                            {
+                                filterStr.Append("" + stastr + " " + Table + "[" + Field + "] " + Endstr + " = " + str + "" + Data[i] + "" + str + " || ");
+                            }
+                        }
+
+                        tpm.FilterExpression = filterStr.ToString();
+                        ModelRole mr = new ModelRole();
+                        mr.Name = RoleName;
+                        mr.ModelPermission = ModelPermission.Read;
+                        mr.TablePermissions.Add(tpm);
+                        //添加用户
+                        if (Userlist.Count > 0)
+                        {
+                            foreach (string user in Userlist)
+                            {
+                                ModelRoleMember emrm = new WindowsModelRoleMember();
+                                emrm.MemberName = "" + DomainAccount + "\\" + user + "";
+                                mr.Members.Add(emrm);
+                            }
+                        }
+
+                        asDatabase.Model.Roles.Add(mr);
+                        asDatabase.Update(Microsoft.AnalysisServices.UpdateOptions.ExpandFull);
+                        // Console.WriteLine(RoleName + "---添加角色成功，");
+
+                    }
                 }
+
+            }
+            catch (Exception ex)
+            {
+                var obj = new { Data, RoleName, Userlist, Field };
+                string str = JsonConvert.SerializeObject(obj);
+                logInfo.Error("TabularSetRolePermissionRoleDoesNotExist报错：" + ex.Message + "/n *****数据参数为：" + str);
             }
         }
 
@@ -302,140 +317,151 @@ namespace DBUtility
         ///// </summary>
         public void TabularSetRolePermissionRoleExist(List<string> Data, string RoleName, List<Tabular_Role_mapping> TSAlist, string Field)
         {
-            using (Server server = new Server())
+            try
             {
-                server.Connect(ConnectionString);
-                Database asDatabase;
-                if (server.Databases.FindByName(DataBases) != null)
+                using (Server server = new Server())
                 {
-                    asDatabase = server.Databases.FindByName(DataBases);
-                    //var db = server.Databases.GetByName(DataBases);
-                    var Roles = asDatabase.Model.Roles;
-                    var thisRole = Roles.Find(RoleName);
-
-                    StringBuilder filterStr = new StringBuilder();
-                    if (TSAlist == null)
+                    server.Connect(ConnectionString);
+                    Database asDatabase;
+                    if (server.Databases.FindByName(DataBases) != null)
                     {
-                        if (Data.Count() > 0)
+                        asDatabase = server.Databases.FindByName(DataBases);
+                        //var db = server.Databases.GetByName(DataBases);
+                        var Roles = asDatabase.Model.Roles;
+                        var thisRole = Roles.Find(RoleName);
+
+                        StringBuilder filterStr = new StringBuilder();
+                        if (TSAlist == null)
                         {
-                            for (int i = 0, ListCount = Data.Count; i < ListCount; i++)
+                            if (Data.Count() > 0)
                             {
-                                string str = IsNumeric(Data[i]);
-                                string stastr = str == "" ? "VALUE(" : "";
-                                string Endstr = str == "" ? ")" : "";
-                                if (i == ListCount - 1)
+                                for (int i = 0, ListCount = Data.Count; i < ListCount; i++)
                                 {
+                                    string str = IsNumeric(Data[i]);
+                                    string stastr = str == "" ? "VALUE(" : "";
+                                    string Endstr = str == "" ? ")" : "";
+                                    if (i == ListCount - 1)
+                                    {
 
-                                    filterStr.Append("" + stastr + " " + Table + "[" + Field + "] " + Endstr + " = " + str + "" + Data[i] + "" + str + " ");
+                                        filterStr.Append("" + stastr + " " + Table + "[" + Field + "] " + Endstr + " = " + str + "" + Data[i] + "" + str + " ");
 
+                                    }
+                                    else
+                                    {
+                                        filterStr.Append("" + stastr + " " + Table + "[" + Field + "] " + Endstr + " = " + str + "" + Data[i] + "" + str + " || ");
+                                    }
                                 }
-                                else
+                            }
+
+                        }
+                        else
+                        {
+                            var OldListcount = TSAlist.GroupBy(e => e.Filed).Select(g => new Filder_DataClass
+                            {
+                                Filder = g.FirstOrDefault().Filed,
+                                Data = g.Select(e => e.Data).ToList()
+                            }).ToList();
+                            var FieleCoun = OldListcount.Count();
+                            if (OldListcount.Count() > 0 && Data.Count() > 0)
+                            {
+                                filterStr.Append("AND(");
+                                for (int i = 0, ListCount = Data.Count; i < ListCount; i++)
                                 {
-                                    filterStr.Append("" + stastr + " " + Table + "[" + Field + "] " + Endstr + " = " + str + "" + Data[i] + "" + str + " || ");
+                                    string str = IsNumeric(Data[i]);
+                                    string stastr = str == "" ? "VALUE(" : "";
+                                    string Endstr = str == "" ? ")" : "";
+                                    if (i == ListCount - 1)
+                                    {
+                                        filterStr.Append("" + stastr + " [" + Field + "] " + Endstr + " = " + str + "" + Data[i] + "" + str + " ");
+                                    }
+                                    else
+                                    {
+                                        filterStr.Append("" + stastr + " [" + Field + "] " + Endstr + " = " + str + "" + Data[i] + "" + str + " || ");
+                                    }
+                                }
+                                filterStr.Append(TraversalDax(OldListcount));
+                                var FilderCount = FieleCoun + 1;
+                                int SupportCount = 0;
+                                SupportCount = FilderCount - 1;
+                                for (int i = 0; i < SupportCount; i++)
+                                {
+                                    filterStr.Append(" )");
+                                }
+                            }
+                            else if (OldListcount.Count() > 1 && Data.Count() == 0)
+                            {
+                                filterStr.Append("AND(");
+                                for (int i = 0, ListCount = OldListcount[0].Data.Count; i < ListCount; i++)
+                                {
+                                    string str = IsNumeric(OldListcount[0].Data[i]);
+                                    string stastr = str == "" ? "VALUE(" : "";
+                                    string Endstr = str == "" ? ")" : "";
+                                    if (i == ListCount - 1)
+                                    {
+
+                                        filterStr.Append("" + stastr + " [" + OldListcount[0].Filder + "] " + Endstr + " = " + str + "" + OldListcount[0].Data[i] + "" + str + " ");
+
+                                    }
+                                    else
+                                    {
+                                        filterStr.Append("" + stastr + " [" + OldListcount[0].Filder + "] " + Endstr + " = " + str + "" + OldListcount[0].Data[i] + "" + str + " || ");
+                                    }
+                                }
+                                OldListcount.RemoveAt(0);
+                                filterStr.Append(TraversalDax(OldListcount));
+                                var FilderCount = FieleCoun;
+                                int SupportCount = 0;
+                                SupportCount = FilderCount - 1;
+                                for (int i = 0; i < SupportCount; i++)
+                                {
+                                    filterStr.Append(" )");
+                                }
+
+                            }
+                            else if (OldListcount.Count() == 1)
+                            {
+                                for (int i = 0, ListCount = OldListcount[0].Data.Count; i < ListCount; i++)
+                                {
+                                    string str = IsNumeric(OldListcount[0].Data[i]);
+                                    string stastr = str == "" ? "VALUE(" : "";
+                                    string Endstr = str == "" ? ")" : "";
+                                    if (i == ListCount - 1)
+                                    {
+                                        filterStr.Append("" + stastr + " " + Table + "[" + OldListcount[0].Filder + "] " + Endstr + " = " + str + "" + OldListcount[0].Data[i] + "" + str + " ");
+                                    }
+                                    else
+                                    {
+                                        filterStr.Append("" + stastr + " " + Table + "[" + OldListcount[0].Filder + "] " + Endstr + " = " + str + "" + OldListcount[0].Data[i] + "" + str + " || ");
+                                    }
                                 }
                             }
                         }
 
-                    }
-                    else
-                    {
-                        var OldListcount = TSAlist.GroupBy(e => e.Filed).Select(g => new Filder_DataClass
+
+                        if (thisRole.TablePermissions.Find(Table) == null)
                         {
-                            Filder = g.FirstOrDefault().Filed,
-                            Data = g.Select(e => e.Data).ToList()
-                        }).ToList();
-                        var FieleCoun = OldListcount.Count();
-                        if (OldListcount.Count() > 0 && Data.Count() > 0)
-                        {
-                            filterStr.Append("AND(");
-                            for (int i = 0, ListCount = Data.Count; i < ListCount; i++)
-                            {
-                                string str = IsNumeric(Data[i]);
-                                string stastr = str == "" ? "VALUE(" : "";
-                                string Endstr = str == "" ? ")" : "";
-                                if (i == ListCount - 1)
-                                {
-                                    filterStr.Append("" + stastr + " [" + Field + "] " + Endstr + " = " + str + "" + Data[i] + "" + str + " ");
-                                }
-                                else
-                                {
-                                    filterStr.Append("" + stastr + " [" + Field + "] " + Endstr + " = " + str + "" + Data[i] + "" + str + " || ");
-                                }
-                            }
-                            filterStr.Append(TraversalDax(OldListcount));
-                            var FilderCount = FieleCoun + 1;
-                            int SupportCount = 0;
-                            SupportCount = FilderCount - 1;
-                            for (int i = 0; i < SupportCount; i++)
-                            {
-                                filterStr.Append(" )");
-                            }
+                            TablePermission tpm = new TablePermission();
+                            tpm.Table = asDatabase.Model.Tables.Find(Table);
+
+                            tpm.FilterExpression = filterStr.ToString();
+                            thisRole.TablePermissions.Add(tpm);
                         }
-                        else if (OldListcount.Count() > 1 && Data.Count() == 0)
+                        else
                         {
-                            filterStr.Append("AND(");
-                            for (int i = 0, ListCount = OldListcount[0].Data.Count; i < ListCount; i++)
-                            {
-                                string str = IsNumeric(OldListcount[0].Data[i]);
-                                string stastr = str == "" ? "VALUE(" : "";
-                                string Endstr = str == "" ? ")" : "";
-                                if (i == ListCount - 1)
-                                {
-
-                                    filterStr.Append("" + stastr + " [" + OldListcount[0].Filder + "] " + Endstr + " = " + str + "" + OldListcount[0].Data[i] + "" + str + " ");
-
-                                }
-                                else
-                                {
-                                    filterStr.Append("" + stastr + " [" + OldListcount[0].Filder + "] " + Endstr + " = " + str + "" + OldListcount[0].Data[i] + "" + str + " || ");
-                                }
-                            }
-                            OldListcount.RemoveAt(0);
-                            filterStr.Append(TraversalDax(OldListcount));
-                            var FilderCount = FieleCoun;
-                            int SupportCount = 0;
-                            SupportCount = FilderCount - 1;
-                            for (int i = 0; i < SupportCount; i++)
-                            {
-                                filterStr.Append(" )");
-                            }
-
+                            thisRole.TablePermissions.Find(Table).FilterExpression = filterStr.ToString();
                         }
-                        else if (OldListcount.Count() == 1)
-                        {
-                            for (int i = 0, ListCount = OldListcount[0].Data.Count; i < ListCount; i++)
-                            {
-                                string str = IsNumeric(OldListcount[0].Data[i]);
-                                string stastr = str == "" ? "VALUE(" : "";
-                                string Endstr = str == "" ? ")" : "";
-                                if (i == ListCount - 1)
-                                {
-                                    filterStr.Append("" + stastr + " " + Table + "[" + OldListcount[0].Filder + "] " + Endstr + " = " + str + "" + OldListcount[0].Data[i] + "" + str + " ");
-                                }
-                                else
-                                {
-                                    filterStr.Append("" + stastr + " " + Table + "[" + OldListcount[0].Filder + "] " + Endstr + " = " + str + "" + OldListcount[0].Data[i] + "" + str + " || ");
-                                }
-                            }
-                        }
+                        asDatabase.Update(Microsoft.AnalysisServices.UpdateOptions.ExpandFull);
                     }
-
-
-                    if (thisRole.TablePermissions.Find(Table) == null)
-                    {
-                        TablePermission tpm = new TablePermission();
-                        tpm.Table = asDatabase.Model.Tables.Find(Table);
-
-                        tpm.FilterExpression = filterStr.ToString();
-                        thisRole.TablePermissions.Add(tpm);
-                    }
-                    else
-                    {
-                        thisRole.TablePermissions.Find(Table).FilterExpression = filterStr.ToString();
-                    }
-                    asDatabase.Update(Microsoft.AnalysisServices.UpdateOptions.ExpandFull);
                 }
+
             }
+            catch (Exception ex)
+            {
+                var obj = new { Data, RoleName, TSAlist, Field };
+                string str = JsonConvert.SerializeObject(obj);
+                logInfo.Error("TabularSetRolePermissionRoleExist报错：" + ex.Message + "/n *****数据参数为：" + str);
+            }
+
         }
 
 
