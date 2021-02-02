@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using DBUtility;
+using System.Web;
 using Microsoft.AnalysisServices.Core;
 
 namespace PermissionSync
@@ -14,7 +16,19 @@ namespace PermissionSync
     {
         static void Main(string[] args)
         {
-            PBIPermissions();
+            //PBIPermissions();
+            //Permissions();
+            try
+            {
+                log4net.ILog logInfo = log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType.Name);
+                logInfo.Error("测试日志写入");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+           
+            
         }
 
         //public static string connectionString = "Data Source=ECISPOWERUATTES;Initial Catalog=Eisai_DMT;User Id=sa;Password=123456;";
