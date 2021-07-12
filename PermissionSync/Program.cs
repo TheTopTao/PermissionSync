@@ -34,8 +34,8 @@ namespace PermissionSync
         }
 
         //public static string connectionString = "Data Source=ECISPOWERUATTES;Initial Catalog=Eisai_DMT;User Id=sa;Password=123456;";
-        //public static string connectionString = "Data Source=ECISPOWERBI;Initial Catalog=Eisai_DMT;User Id=service;Password=fisk@EC1;";
-        public static string connectionString = "Data Source = .\\sqlserver2019; Initial Catalog = WeicaiTest; Integrated Security = SSPI";
+        public static string connectionString = "Data Source=ECISPOWERBI;Initial Catalog=Eisai_DMT;User Id=service;Password=fisk@EC1;";
+        //public static string connectionString = "Data Source = .\\sqlserver2019; Initial Catalog = WeicaiTest; Integrated Security = SSPI";
 
         public static void Permissions()
         {
@@ -43,17 +43,17 @@ namespace PermissionSync
             {
 
                 #region 数据权限操作
-                //string DomainAccount = "ROOT_EISAI"; //域账号
-                //string Instance = "ECISPOWERBI"; //182：ECISPOWERUATTES， 181：ECISPOWERBIDEV
-                //string DataBases = "Eisai_BAIM";    // 182： Eisai_BAIM ， 181 ：Eisai_BAIM
-                //string tables = "V_Dim_Territory";
-                //string tablesCVH = "V_Dim_TerritoryCVH";
-
-                string DomainAccount = ""; //域账号
-                string Instance = ".\\sqlserver2019";
-                string DataBases = "Eisai_Sales";
+                string DomainAccount = "ROOT_EISAI"; //域账号
+                string Instance = "ECISPOWERBI"; //182：ECISPOWERUATTES， 181：ECISPOWERBIDEV
+                string DataBases = "Eisai_BAIM";    // 182： Eisai_BAIM ， 181 ：Eisai_BAIM
                 string tables = "V_Dim_Territory";
                 string tablesCVH = "V_Dim_TerritoryCVH";
+
+                //string DomainAccount = ""; //域账号
+                //string Instance = ".\\sqlserver2019";
+                //string DataBases = "Eisai_Sales";
+                //string tables = "V_Dim_Territory";
+                //string tablesCVH = "V_Dim_TerritoryCVH";
 
                 string Field = "";
                 //string connectionString = "Data Source = .\\sqlserver2019; Initial Catalog = WeicaiTest; Integrated Security = SSPI";
@@ -92,109 +92,116 @@ namespace PermissionSync
 
                 foreach (DataRow role in RoleData.Rows)
                 {
-                    string roleName = role["RoleName"].ToString();
-                    string roleID = role["RoleID"].ToString();
-                    string roleFlag = role["Flag"].ToString();
 
-                    if (roleFlag == "2")
+                    try
                     {
 
-                        bool TabHasRole = tmo.RoleIsHave(roleName);
-                        if (TabHasRole)
+                        string roleName = role["RoleName"].ToString();
+                        string roleID = role["RoleID"].ToString();
+                        string roleFlag = role["Flag"].ToString();
+
+                        if (roleFlag == "2")
                         {
+
+                            bool TabHasRole = tmo.RoleIsHave(roleName);
+                            if (TabHasRole)
+                            {
+                                //删除该角色下的用户，重新添加用户
+                                tmo.DelUser(Instance, DataBases, roleName);
+                            }
+
+
+                            Console.WriteLine("flag2角色: " + roleName);
+                            //通过角色id查找该角色下的用户的账号
+                            string userSql = $@"SELECT U.UserAccount FROM [dbo].[Cfg_Role_User_Mapping] RU LEFT JOIN [dbo].[Cfg_UserInfo] U ON RU.UserID=U.UserInfoID WHERE RU.RoleID='{roleID}' AND U.Validity='1' AND RU.Validity = '1'";
+                            Console.WriteLine(userSql);
+                            DataTable userListDT = dbHelper.Query(userSql).Tables[0];
+                            List<string> UserAccountList = new List<string>();
+                            if (userListDT.Rows.Count > 0)
+                            {
+                                foreach (DataRow user in userListDT.Rows)
+                                {
+                                    Console.WriteLine(user["UserAccount"].ToString());
+                                    UserAccountList.Add(user["UserAccount"].ToString());
+                                }
+                            }
+                            //        //查找角色下的配置的字段
+                            string fieldSql = $@"SELECT DISTINCT TR.Filed FROM [dbo].[Cfg_Tabular_Role_Mapping] TR LEFT JOIN [dbo].[Cfg_RoleInfo] R ON TR.RoleID=R.RoleID  WHERE TR.RoleID='{roleID}' and R.Validity = '1' and TR.Validity = '1' ";
+                            DataTable FieldDT = dbHelper.Query(fieldSql).Tables[0];
+                            foreach (DataRow field in FieldDT.Rows)
+                            {
+                                string fieldName = field["Filed"].ToString();
+                                //通过字段和角色id  查找角色中的配置的数据
+                                string dataSql = $@"SELECT DISTINCT TR.Data FROM [dbo].[Cfg_Tabular_Role_Mapping] TR LEFT JOIN [dbo].[Cfg_RoleInfo] R ON TR.RoleID=R.RoleID WHERE TR.DataType='Row' AND TR.Tables='{tables}' AND TR.Filed='{fieldName}' AND TR.RoleID='{roleID}' AND TR.Validity ='1'";
+                                List<string> dataList = new List<string>();
+                                DataTable dataDT = dbHelper.Query(dataSql).Tables[0];
+                                foreach (DataRow data in dataDT.Rows)
+                                {
+                                    dataList.Add(data["Data"].ToString());
+                                }
+                                if (!TabHasRole)
+                                {
+                                    tmo.TabularSetRolePermissionRoleDoesNotExist(dataList, roleName, UserAccountList, DomainAccount, fieldName);
+                                }
+
+                                //同步TerritoryCVH数据权限
+                                string dataCVHSql = $@"SELECT DISTINCT TR.Data FROM [dbo].[Cfg_Tabular_Role_Mapping] TR LEFT JOIN [dbo].[Cfg_RoleInfo] R ON TR.RoleID=R.RoleID WHERE TR.DataType='Row' AND TR.Tables='{tablesCVH}' AND TR.Filed='{fieldName}' AND TR.RoleID='{roleID}' AND TR.Validity = '1'";
+                                List<string> dataCVHList = new List<string>();
+                                DataTable dataCVHDT = dbHelper.Query(dataSql).Tables[0];
+                                foreach (DataRow data in dataCVHDT.Rows)
+                                {
+                                    dataCVHList.Add(data["Data"].ToString());
+                                }
+                                bool TabCVHHasRole = tmoCVH.RoleIsHave(roleName);
+                                if (!TabCVHHasRole)
+                                {
+                                    //tmoCVH.TabularSetRolePermissionRoleDoesNotExist(dataCVHList, roleName, UserAccountList, DomainAccount, fieldName);
+                                }
+                                else
+                                {
+                                    //获取之前的表所有字段的权限除当前字段
+                                    var TabluarAssinglist = GetOtherTabularRoleFiledAuthorit(Instance, DataBases, tablesCVH, fieldName, roleID , dbHelper);
+                                    tmoCVH.TabularSetRolePermissionRoleExist(dataCVHList, roleName, TabluarAssinglist, fieldName);
+                                }
+                            }
+
+                        }
+                        else //若角色flag为1和3  则更新其角色下的用户
+                        {
+                            if (!modelRolesAll.Where(e => e.Name == roleName).Any())
+                            {
+                                continue;
+                            }
+
+                            Console.WriteLine("1和3角色需更新用户： " + roleName);
                             //删除该角色下的用户，重新添加用户
                             tmo.DelUser(Instance, DataBases, roleName);
-                        }
-
-
-                        Console.WriteLine("flag2角色: " + roleName);
-                        //通过角色id查找该角色下的用户的账号
-                        string userSql = $@"SELECT U.UserAccount FROM [dbo].[Cfg_Role_User_Mapping] RU LEFT JOIN [dbo].[Cfg_UserInfo] U ON RU.UserID=U.UserInfoID WHERE RU.RoleID='{roleID}' AND U.Validity='1' AND RU.Validity = '1'";
-                        Console.WriteLine(userSql);
-                        DataTable userListDT = dbHelper.Query(userSql).Tables[0];
-                        List<string> UserAccountList = new List<string>();
-                        if (userListDT.Rows.Count > 0)
-                        {
-                            foreach (DataRow user in userListDT.Rows)
+                            //通过角色id查找该角色下的用户的账号
+                            string userSql = $@"SELECT U.UserAccount FROM [dbo].[Cfg_Role_User_Mapping] RU LEFT JOIN [dbo].[Cfg_UserInfo] U ON RU.UserID=U.UserInfoID WHERE RU.RoleID='{roleID}' AND U.Validity='1' AND RU.Validity = '1' ";
+                            Console.WriteLine(userSql);
+                            DataTable userListDT = dbHelper.Query(userSql).Tables[0];
+                            List<string> UserAccountList = new List<string>();
+                            if (userListDT.Rows.Count > 0)
                             {
-                                Console.WriteLine(user["UserAccount"].ToString());
-                                UserAccountList.Add(user["UserAccount"].ToString());
+                                foreach (DataRow user in userListDT.Rows)
+                                {
+                                    Console.WriteLine(user["UserAccount"].ToString());
+                                    UserAccountList.Add(user["UserAccount"].ToString());
+                                }
+                            }
+                            if (UserAccountList.Count > 0)
+                            {
+                                Console.WriteLine("1和3开始重新添加里面的用户");
+                                tmo.AddMember(Instance, DataBases, roleName, DomainAccount, UserAccountList);
                             }
                         }
-                        //        //查找角色下的配置的字段
-                        string fieldSql = $@"SELECT DISTINCT TR.Filed FROM [dbo].[Cfg_Tabular_Role_Mapping] TR LEFT JOIN [dbo].[Cfg_RoleInfo] R ON TR.RoleID=R.RoleID  WHERE TR.RoleID='{roleID}' and R.Validity = '1' and TR.Validity = '1' ";
-                        DataTable FieldDT = dbHelper.Query(fieldSql).Tables[0];
-                        foreach (DataRow field in FieldDT.Rows)
-                        {
-                            string fieldName = field["Filed"].ToString();
-                            //通过字段和角色id  查找角色中的配置的数据
-                            string dataSql = $@"SELECT DISTINCT TR.Data FROM [dbo].[Cfg_Tabular_Role_Mapping] TR LEFT JOIN [dbo].[Cfg_RoleInfo] R ON TR.RoleID=R.RoleID WHERE TR.DataType='Row' AND TR.Tables='{tables}' AND TR.Filed='{fieldName}' AND TR.RoleID='{roleID}' AND TR.Validity ='1'";
-                            List<string> dataList = new List<string>();
-                            DataTable dataDT = dbHelper.Query(dataSql).Tables[0];
-                            foreach (DataRow data in dataDT.Rows)
-                            {
-                                dataList.Add(data["Data"].ToString());
-                            }
-
-                            if (!TabHasRole)
-                            {
-
-                                tmo.TabularSetRolePermissionRoleDoesNotExist(dataList, roleName, UserAccountList, DomainAccount, fieldName);
-                            }
-
-                            //同步TerritoryCVH数据权限
-                            string dataCVHSql = $@"SELECT DISTINCT TR.Data FROM [dbo].[Cfg_Tabular_Role_Mapping] TR LEFT JOIN [dbo].[Cfg_RoleInfo] R ON TR.RoleID=R.RoleID WHERE TR.DataType='Row' AND TR.Tables='{tablesCVH}' AND TR.Filed='{fieldName}' AND TR.RoleID='{roleID}' AND TR.Validity = '1'";
-                            List<string> dataCVHList = new List<string>();
-                            DataTable dataCVHDT = dbHelper.Query(dataSql).Tables[0];
-                            foreach (DataRow data in dataCVHDT.Rows)
-                            {
-                                dataCVHList.Add(data["Data"].ToString());
-                            }
-                            bool TabCVHHasRole = tmoCVH.RoleIsHave(roleName);
-                            if (!TabCVHHasRole)
-                            {
-                                //tmoCVH.TabularSetRolePermissionRoleDoesNotExist(dataCVHList, roleName, UserAccountList, DomainAccount, fieldName);
-                            }
-                            else
-                            {
-                                //获取之前的表所有字段的权限除当前字段
-                                var TabluarAssinglist = GetOtherTabularRoleFiledAuthorit(Instance, DataBases, tablesCVH, fieldName, roleID);
-                                tmoCVH.TabularSetRolePermissionRoleExist(dataCVHList, roleName, TabluarAssinglist, fieldName);
-                            }
-                        }
-
                     }
-                    else //若角色flag为1和3  则更新其角色下的用户
+                    catch (Exception ex)
                     {
-                        continue;
-                        if (!modelRolesAll.Where(e => e.Name == roleName).Any())
-                        {
-                            continue;
-                        }
 
-                        Console.WriteLine("1和3角色需更新用户： " + roleName);
-                        //删除该角色下的用户，重新添加用户
-                        tmo.DelUser(Instance, DataBases, roleName);
-                        //通过角色id查找该角色下的用户的账号
-                        string userSql = $@"SELECT U.UserAccount FROM [dbo].[Cfg_Role_User_Mapping] RU LEFT JOIN [dbo].[Cfg_UserInfo] U ON RU.UserID=U.UserInfoID WHERE RU.RoleID='{roleID}' AND U.Validity='1' AND RU.Validity = '1' ";
-                        Console.WriteLine(userSql);
-                        DataTable userListDT = dbHelper.Query(userSql).Tables[0];
-                        List<string> UserAccountList = new List<string>();
-                        if (userListDT.Rows.Count > 0)
-                        {
-                            foreach (DataRow user in userListDT.Rows)
-                            {
-                                Console.WriteLine(user["UserAccount"].ToString());
-                                UserAccountList.Add(user["UserAccount"].ToString());
-                            }
-                        }
-                        if (UserAccountList.Count > 0)
-                        {
-                            Console.WriteLine("1和3开始重新添加里面的用户");
-                            tmo.AddMember(Instance, DataBases, roleName, DomainAccount, UserAccountList);
-                        }
-
+                        logInfo.Error(role["RoleID"].CastToString()+"设置人员权限时：" + ex.Message);
                     }
+
 
                 }
                 #endregion
@@ -219,13 +226,13 @@ namespace PermissionSync
 
         }
 
-        public static List<Tabular_Role_mapping> GetOtherTabularRoleFiledAuthorit(string Instance, string DataBase, string Table, string Filed, string RoleId)
+        public static List<Tabular_Role_mapping> GetOtherTabularRoleFiledAuthorit(string Instance, string DataBase, string Table, string Filed, string RoleId , DbHelperSQL dbHelper)
         {
 
             //string connectionString = "Data Source = .\\sqlserver2019; Initial Catalog = WeicaiTest; Integrated Security = SSPI";
             //string connectionString = "Data Source=ECISPOWERBI;Initial Catalog=Eisai_DMT;User Id=service;Password=fisk@EC1;";
 
-            DbHelperSQL dbHelper = new DbHelperSQL(connectionString);
+            //DbHelperSQL dbHelper = new DbHelperSQL(connectionString);
 
             List<Tabular_Role_mapping> list = new List<Tabular_Role_mapping>();
             try

@@ -110,6 +110,7 @@ namespace DBUtility
                     try
                     {
                         var f = clientPBI.GetPowerBIReport(reportID);
+                        Console.WriteLine(f.Name);
                         isAliveFolder = true;
                     }
                     catch (Exception)
